@@ -1,0 +1,3 @@
+rootProject.name = "AndroidOpenAi"
+include ':app'
+include ':OpenAi'
