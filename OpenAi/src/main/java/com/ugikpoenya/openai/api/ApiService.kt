@@ -25,5 +25,8 @@ interface ApiService {
     @POST("images/edits")
     fun postImagesEdits(@Header("Authorization") Authorization: String?, @Body file: RequestBody?): Call<ImageResponse>
 
+    @POST("images/variations ")
+    fun postImagesVariations (@Header("Authorization") Authorization: String?, @Body file: RequestBody?): Call<ImageResponse>
+
 
 }

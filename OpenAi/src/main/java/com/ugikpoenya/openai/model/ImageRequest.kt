@@ -7,21 +7,4 @@ class ImageRequest {
     var response_format: String? = null
     var image: String? = null
     var mask: String? = null
-
-    constructor(prompt: String?) {
-        this.prompt = prompt
-    }
-
-    constructor(prompt: String?, image: String?) {
-        this.prompt = prompt
-        this.image = image
-    }
-
-
-    constructor(prompt: String?, image: String?, mask: String) {
-        this.prompt = prompt
-        this.image = image
-        this.mask = mask
-    }
-
 }

@@ -129,4 +129,38 @@ class OpenAi(context: Context) {
             }
         })
     }
+
+    fun postImagesVariations (imageRequest: ImageRequest?, function: (response: ImageResponse?, error: ErrorResponse?) -> (Unit)) {
+        val builder = MultipartBody.Builder()
+        builder.setType(MultipartBody.FORM)
+        if (imageRequest?.size != null) builder.addFormDataPart("size", imageRequest.size.toString())
+        if (imageRequest?.n != null) builder.addFormDataPart("n", imageRequest.n.toString())
+        if (imageRequest?.response_format != null) builder.addFormDataPart("response_format", imageRequest.response_format.toString())
+
+
+        if (imageRequest?.image != null) {
+            val image = File(imageRequest.image.toString())
+            builder.addFormDataPart("image", image.name, image.asRequestBody("multipart/form-data".toMediaTypeOrNull()))
+        }
+
+        val requestBody = builder.build()
+        val apiService = ApiClient.client!!.create(ApiService::class.java)
+        val call: Call<ImageResponse> = apiService.postImagesVariations("Bearer $OPENAI_API_KEY", requestBody)
+        call.enqueue(object : Callback<ImageResponse> {
+            override fun onResponse(call: Call<ImageResponse>, response: Response<ImageResponse>) {
+                if (response.isSuccessful) {
+                    function(response.body(), null)
+                } else {
+                    val errorResponse = Gson().fromJson(response.errorBody()!!.charStream(), ErrorResponse::class.java)
+                    Log.d("LOG", "errorBody " + errorResponse.error?.message)
+                    function(null, errorResponse)
+                }
+            }
+
+            override fun onFailure(call: Call<ImageResponse>, t: Throwable) {
+                Log.d("LOG", "onFailure " + t.localizedMessage)
+                function(null, null)
+            }
+        })
+    }
 }
