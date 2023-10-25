@@ -6,8 +6,8 @@ import android.util.Log
 import com.google.gson.Gson
 import com.ugikpoenya.openai.api.ApiClient
 import com.ugikpoenya.openai.api.ApiService
-import com.ugikpoenya.openai.api.CompletionResponseBody
 import com.ugikpoenya.openai.api.CompletionListener
+import com.ugikpoenya.openai.api.CompletionResponseBody
 import com.ugikpoenya.openai.model.CompletionModel
 import com.ugikpoenya.openai.model.ErrorResponse
 import com.ugikpoenya.openai.model.ImageRequest
@@ -64,8 +64,12 @@ class OpenAi(context: Context) {
                 .build()
         })
 
-        val logging = HttpLoggingInterceptor()
-        logging.level = HttpLoggingInterceptor.Level.BODY
+        val logging = HttpLoggingInterceptor { message ->
+            if (BuildConfig.DEBUG) {
+                Log.d("LOG", "OkHttp: $message")
+            }
+        }
+        logging.setLevel(HttpLoggingInterceptor.Level.BODY)
         httpClient.addInterceptor(logging)
 
         val retrofit = Retrofit.Builder()
