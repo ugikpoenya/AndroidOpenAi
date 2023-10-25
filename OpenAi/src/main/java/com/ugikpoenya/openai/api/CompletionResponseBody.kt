@@ -40,7 +40,14 @@ class CompletionResponseBody internal constructor(private val responseBody: Resp
                             try {
                                 val jsonString = it.substringAfter(":").trim()
                                 val completion = Gson().fromJson(jsonString, CompletionModel::class.java)
-                                completionListener.update(completion)
+                                completionListener.updateModel(completion)
+                                completionListener.updateResponse(jsonString)
+                                if (completion.choices != null && completion.choices!!.isNotEmpty()) {
+                                    val delta = completion.choices!![0].delta
+                                    if (delta != null) {
+                                        completionListener.updateContent(delta.content)
+                                    }
+                                }
                             } catch (e: Exception) {
                                 Log.d("LOG", it)
                                 Log.d("LOG", e.message.toString())
