@@ -6,17 +6,25 @@ import android.util.Log
 import com.google.gson.Gson
 import com.ugikpoenya.openai.api.ApiClient
 import com.ugikpoenya.openai.api.ApiService
+import com.ugikpoenya.openai.api.CompletionResponseBody
+import com.ugikpoenya.openai.api.CompletionListener
 import com.ugikpoenya.openai.model.CompletionModel
 import com.ugikpoenya.openai.model.ErrorResponse
 import com.ugikpoenya.openai.model.ImageRequest
 import com.ugikpoenya.openai.model.ImageResponse
 import com.ugikpoenya.openai.model.ModelResponse
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.ResponseBody
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 
 
@@ -47,23 +55,41 @@ class OpenAi(context: Context) {
         })
     }
 
-    fun postChatCompletions(completion: CompletionModel, function: (response: CompletionModel?, error: ErrorResponse?) -> (Unit)) {
-        val apiService = ApiClient.client!!.create(ApiService::class.java)
-        val call: Call<CompletionModel> = apiService.postChatCompletions("Bearer $OPENAI_API_KEY", completion)
-        call.enqueue(object : Callback<CompletionModel> {
-            override fun onResponse(call: Call<CompletionModel>, response: Response<CompletionModel>) {
+    fun postChatCompletions(completion: CompletionModel, completionListener: CompletionListener, function: (isSuccessful: Boolean?, error: ErrorResponse?) -> (Unit)) {
+        val httpClient = OkHttpClient.Builder()
+        httpClient.addNetworkInterceptor(Interceptor { chain: Interceptor.Chain ->
+            val originalResponse = chain.proceed(chain.request())
+            originalResponse.newBuilder()
+                .body(CompletionResponseBody(originalResponse.body, completionListener))
+                .build()
+        })
+
+        val logging = HttpLoggingInterceptor()
+        logging.level = HttpLoggingInterceptor.Level.BODY
+        httpClient.addInterceptor(logging)
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://api.openai.com/v1/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(httpClient.build())
+            .build()
+
+        val apiService = retrofit.create(ApiService::class.java)
+        val call: Call<ResponseBody> = apiService.postChatCompletions("Bearer $OPENAI_API_KEY", completion)
+        call.enqueue(object : Callback<ResponseBody> {
+            override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
                 if (response.isSuccessful) {
-                    function(response.body(), null)
+                    function(response.isSuccessful, null)
                 } else {
                     val errorResponse = Gson().fromJson(response.errorBody()!!.charStream(), ErrorResponse::class.java)
                     Log.d("LOG", "errorBody " + errorResponse.error?.message)
-                    function(null, errorResponse)
+                    function(false, errorResponse)
                 }
             }
 
-            override fun onFailure(call: Call<CompletionModel>, t: Throwable) {
+            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
                 Log.d("LOG", "onFailure " + t.localizedMessage)
-                function(null, null)
+                function(false, null)
             }
         })
     }
@@ -130,7 +156,7 @@ class OpenAi(context: Context) {
         })
     }
 
-    fun postImagesVariations (imageRequest: ImageRequest?, function: (response: ImageResponse?, error: ErrorResponse?) -> (Unit)) {
+    fun postImagesVariations(imageRequest: ImageRequest?, function: (response: ImageResponse?, error: ErrorResponse?) -> (Unit)) {
         val builder = MultipartBody.Builder()
         builder.setType(MultipartBody.FORM)
         if (imageRequest?.size != null) builder.addFormDataPart("size", imageRequest.size.toString())
